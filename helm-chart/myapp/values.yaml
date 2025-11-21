@@ -3,10 +3,10 @@ replicaCount: 1
 image:
   repository: myapp
   tag: "latest"
+  pullPolicy: Never
 
 service:
   type: ClusterIP
   port: 5000
 
 resources: {}
-
