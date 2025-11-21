@@ -1,0 +1,56 @@
+name: CI / Build / Update-Helm
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install app deps
+        run: |
+          cd app
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          cd app
+          pytest -q
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ github.repository_owner }}/myapp:${{ github.run_number }} ./app
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+      - name: Push image to GHCR
+        run: |
+          docker tag ${{ github.repository_owner }}/myapp:${{ github.run_number }} ghcr.io/${{ github.repository_owner }}/myapp:${{ github.run_number }}
+          docker push ghcr.io/${{ github.repository_owner }}/myapp:${{ github.run_number }}
+
+      - name: Update Helm values.yaml and create commit
+        env:
+          IMAGE_TAG: ${{ github.run_number }}
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          # update tag in values.yaml
+          sed -i "s/tag: .*/tag: \"${IMAGE_TAG}\"/" helm-chart/myapp/values.yaml
+          git add helm-chart/myapp/values.yaml
+          git commit -m "ci: bump image tag to ${IMAGE_TAG}"
+          git push
+

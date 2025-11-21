@@ -1,0 +1,12 @@
+replicaCount: 1
+
+image:
+  repository: myapp
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 5000
+
+resources: {}
+
